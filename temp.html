@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CSV log analysis</title>
+</head>
+<body>
+<table align="center" border="1">
+    <tr>
+        <th><label>SN</label></th>
+        <th><label>CSV file name</label></th>
+        <th><label>CSV fail log</label></th>
+        <th><label>TXT file name</label></th>
+        <th><label>TXT fail log</label></th>
+        <th><label>comment</label></th>
+    </tr>
+    <tr>
+        <th align="center">{{sn}}</th>
+        <th align="center"><a href="{{csv_url}}">{{csv_filename}}</a></th>
+        <td align="center">{{csv_fail_log}}</td>
+        <th align="center"><a href="{{txt_url}}">{{txt_file_name}}</a></th>
+        <td align="center">{{txt_fail_log}}</td>
+        <td align="center">{{comment}}</td>
+    </tr>
+{{next_item}}
+</table>
+</body>
+</html>

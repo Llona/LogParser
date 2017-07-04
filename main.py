@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
 Ver 0.0.1 - First version
+Ver 0.0.2 - add split line on txt log out for user
+            Remove comment col first
+            Change to check both of all txt and csv fail log
 """
 
 from tkinter import *
@@ -18,8 +21,8 @@ from datetime import datetime, timedelta
 # from tkinter.commondialog import Dialog
 from enum import Enum
 
-version = "v0.0.1"
-TITLE = "CSV log parser"
+version = "v0.0.2"
+TITLE = "LogParser"
 SETTING_NAME = "Settings.ini"
 html_template_need_repeat = \
 '    <tr>\n'\
@@ -28,7 +31,7 @@ html_template_need_repeat = \
 '        <td align="center">{{csv_fail_log}}</td>\n'\
 '        <th align="center"><a href="{{txt_url}}">{{txt_file_name}}</a></th>\n\n'\
 '        <td align="center">{{txt_fail_log}}</td>\n'\
-'        <td align="center">{{comment}}</td>\n'\
+'        <!--<td align="center">{{comment}}</td>-->\n'\
 '    </tr>\n'\
 '{{next_item}}'
 
@@ -277,18 +280,19 @@ class replace_Sub_Gui(Frame):
         return find_error, sn_and_error_odic
 
 
-    def get_txt_file_list_match_keyword_to_dic(self, file_path, file_type, keyword):
+    # def get_txt_file_list_match_keyword_to_dic(self, file_path, file_type, keyword):
+    def get_txt_file_list_match_keyword_to_dic(self, all_txt_path, keyword):
         sn_and_filepath_odic = OrderedDict()
-        all_txt_path = []
+        # all_txt_path = []
         txt_list_ll = []
         find_txt_file = False
-
-        for root, dirs, files in os.walk(file_path):
-            for file in files:
-                if file.endswith(file_type):
-                    all_txt_path.append(os.path.join(root, file))
-
-        all_txt_path = tuple(all_txt_path)
+        #
+        # for root, dirs, files in os.walk(file_path):
+        #     for file in files:
+        #         if file.endswith(file_type):
+        #             all_txt_path.append(os.path.join(root, file))
+        #
+        # all_txt_path = tuple(all_txt_path)
 
         for file in all_txt_path:
             file_name = os.path.split(file)
@@ -402,9 +406,23 @@ class replace_Sub_Gui(Frame):
             self.store_file_to_folder(csv_sn_and_filepath_odic[i], csv_foldername)
 
         self.setlog("開始分析txt檔", 'info')
-        # read all txt file that fail in csv log
-        for csv_key in sn_and_csverror_odic.keys():
-            temp_odic = self.get_txt_file_list_match_keyword_to_dic(self.user_input_txtpath, '.txt', csv_key)
+        # # get all txt file that fail in csv log
+        # for csv_key in sn_and_csverror_odic.keys():
+        #     temp_odic = self.get_txt_file_list_match_keyword_to_dic(self.user_input_txtpath, '.txt', csv_key)
+        #     txt_sn_and_filepath_odic.update(temp_odic)
+
+        # get all txt file that have sn in csv file
+
+        all_txt_path = []
+        for root, dirs, files in os.walk(self.user_input_txtpath):
+            for file in files:
+                if file.endswith('.txt'):
+                    all_txt_path.append(os.path.join(root, file))
+        all_txt_path = tuple(all_txt_path)
+
+        for csv_key in csv_sn_and_filepath_odic.keys():
+            # temp_odic = self.get_txt_file_list_match_keyword_to_dic(self.user_input_txtpath, '.txt', csv_key)
+            temp_odic = self.get_txt_file_list_match_keyword_to_dic(all_txt_path, csv_key)
             txt_sn_and_filepath_odic.update(temp_odic)
 
         # read txt content and find 'fail' keyword
@@ -438,60 +456,74 @@ class replace_Sub_Gui(Frame):
             return
 
         # html_content = html_content.replace('{{sn}}', '12345')
-        count = 0
-        for sn, error in sn_and_csverror_odic.items():
-
-            # print('-----%s-----' % k)
-            # write sn
-            html_content = html_content.replace('{{sn}}', sn)
-            # write csv file path to url
-            html_content = html_content.replace('{{csv_url}}', csv_sn_and_filepath_odic[sn])
-            # write csv file name
-            html_content = html_content.replace('{{csv_filename}}', ('%s%s' % (sn, '.csv')))
-
-            # write csv error log to html
-            temp_error_log = ''
-            for i in error:
-                temp_error_log += '%s%s' % (i, '<br>')
-            html_content = html_content.replace('{{csv_fail_log}}', temp_error_log)
-
-            # write txt all file path to html
-            temp_txt_filepath = ''
-            file_name = ''
-            temp_error_log = ''
-            # try:
+        # for sn, error in sn_and_csverror_odic.items(): # read all sn that fail in csv file
+        for sn in csv_sn_and_filepath_odic.keys():  # read all sn that has csv file
+            # if sn have error that in txt file
+            sn_has_txt_error = False
             if sn in txt_sn_and_filepath_odic.keys():
-                for txt_path in txt_sn_and_filepath_odic[sn]:
-
-                    # print(txt_path)
-                    file_name = os.path.split(txt_path)
-                    # <a href="{{txt_url}}">{{txt_file_name}}</a>
-                    temp_txt_filepath += '%s%s%s%s%s' % ('<a href=\"', txt_path, '\">', file_name[1], '<br>')
-                    try:
-                        count = 0
-                        for txt_error in sn_and_txterror_odic[txt_path]:
-                            count += 1
-                            temp_error_log += '%s%s' % (txt_error, '<br>')
-
-                    except:
-                        pass
-
-                html_content = html_content.replace('<a href="{{txt_url}}">{{txt_file_name}}</a>', temp_txt_filepath)
-
-
-                if (count % 2) == 0:
-                    html_content = html_content.replace('{{txt_fail_log}}', temp_error_log)
-                else:
-                    html_content = html_content.replace('{{txt_fail_log}}', ('%s%s%s' % ('<font color="blue">', temp_error_log, '</font>')))
+                for txt_file_path in txt_sn_and_filepath_odic[sn]:
+                    if txt_file_path in sn_and_txterror_odic.keys():
+                        sn_has_txt_error = True
             else:
-                self.setlog("sn: " + sn + ' 在csv檔有fail log 但找不到txt檔', 'info2')
-            # except:
+                self.setlog("sn: " + sn + ' 沒有txt檔', 'info')
 
-
-
-            html_content = html_content.replace('{{next_item}}', html_template_need_repeat)
-            # for txt_sn, txt_errror in txt_sn_and_filepath_odic.items():
+            if (sn in sn_and_csverror_odic) or sn_has_txt_error:  # if sn have error that in txt file
+                # print('-----%s-----' % k)
                 # write sn
+                if html_content.find('{{sn}}') == -1:
+                    self.setlog("Error! 寫入html發生錯誤, 找不到{{sn}}標籤! ", 'error')
+                    return
+                html_content = html_content.replace('{{sn}}', sn)
+                # write csv file path to url
+                html_content = html_content.replace('{{csv_url}}', csv_sn_and_filepath_odic[sn])
+                # write csv file name
+                html_content = html_content.replace('{{csv_filename}}', ('%s%s' % (sn, '.csv')))
+
+                if sn in sn_and_csverror_odic.keys():
+                    # write csv error log to html
+                    temp_error_log = ''
+                    for fail_list in sn_and_csverror_odic[sn]:
+                        if isinstance(fail_list, list):
+                            for i in fail_list:
+                                temp_error_log += '%s%s' % (i, '<br>')
+                        else:
+                            temp_error_log += '%s%s' % (fail_list, '<br>')
+                    html_content = html_content.replace('{{csv_fail_log}}', temp_error_log)
+                else:
+                    html_content = html_content.replace('{{csv_fail_log}}', '')
+                    self.setlog("sn: " + sn + '沒有csv fail log, 但有txt fail log', 'info')
+
+                # write txt all file path to html
+                temp_txt_filepath = ''
+                file_name = ''
+                temp_error_log = ''
+                # try:
+                if sn in txt_sn_and_filepath_odic.keys():
+                    for txt_path in txt_sn_and_filepath_odic[sn]:
+
+                        # print(txt_path)
+                        file_name = os.path.split(txt_path)
+                        # <a href="{{txt_url}}">{{txt_file_name}}</a>
+                        temp_txt_filepath += '%s%s%s%s%s' % ('<a href=\"', txt_path, '\">', file_name[1], '<br>')
+                        try:
+                            for txt_error in sn_and_txterror_odic[txt_path]:
+                                temp_error_log += '%s%s' % (txt_error, '<br>')
+                        except:
+                            pass
+                            # self.setlog("找不到" + txt_path + "的error log", 'info')
+
+                        temp_error_log += '*************<br>'
+                    html_content = html_content.replace('<a href="{{txt_url}}">{{txt_file_name}}</a>', temp_txt_filepath)
+
+                    html_content = html_content.replace('{{txt_fail_log}}', temp_error_log)
+                    # html_content = html_content.replace('{{txt_fail_log}}', ('%s%s%s' % ('<font color="blue">', temp_error_log, '</font>')))
+                else:
+                    self.setlog("sn: " + sn + ' 在csv檔有fail log 但沒有txt檔', 'info2')
+                # except:
+
+                html_content = html_content.replace('{{next_item}}', html_template_need_repeat)
+                # for txt_sn, txt_errror in txt_sn_and_filepath_odic.items():
+                    # write sn
 
         # print(html_template_need_repeat)
 

@@ -1,0 +1,4 @@
+Ver 0.0.1 - First version
+Ver 0.0.2 - add split line on txt log out for user
+            Remove comment col first
+            Change to check both of all txt and csv fail log

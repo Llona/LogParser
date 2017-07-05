@@ -2,3 +2,5 @@ Ver 0.0.1 - First version
 Ver 0.0.2 - add split line on txt log out for user
             Remove comment col first
             Change to check both of all txt and csv fail log
+Ver 0.0.3 - Change get file name and show rule for match factory store log new rule
+Ver 0.0.4 - Fix csv no file will make form error issue

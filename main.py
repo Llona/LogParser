@@ -6,6 +6,13 @@ Ver 0.0.2 - add split line on txt log out for user
             Change to check both of all txt and csv fail log
 Ver 0.0.3 - Change get file name and show rule for match factory store log new rule
 Ver 0.0.4 - Fix csv no file will make form error issue
+Ver 0.0.5 - implement user input specif sn to get relate csv and txt log
+Ver 0.0.6 - Add more fail condition
+            Remove \n on user input sn
+            Save html to excel format
+Ver 0.0.7 - Fix Calculation FA fail range issue
+            Fix Calculation Count fail range issue
+Ver 0.0.8 - Add red color for Count and FA fail number in fail log report
 """
 
 from tkinter import *
@@ -18,12 +25,14 @@ import os
 import shutil
 from collections import OrderedDict
 from datetime import datetime, timedelta
+# import pandas
+
 # from tkinter.scrolledtext import ScrolledText
 # from time import sleep
 # from tkinter.commondialog import Dialog
 from enum import Enum
 
-version = "v0.0.4"
+version = "v0.0.8"
 TITLE = "LogParser - " + version
 SETTING_NAME = "Settings.ini"
 html_template_need_repeat = \
@@ -129,11 +138,11 @@ class replace_Sub_Gui(Frame):
         self.version_state.place(relx=0.01, rely=0.87, relwidth=0.116, relheight=0.13)
 
         self.style.configure('Ttxt_path_label.TLabel', anchor='w', font=('iLiHei', 10))
-        self.txt_path_label = Label(self.user_input_frame, text='txt目錄路徑', style='Ttxt_path_label.TLabel')
-        self.txt_path_label.place(relx=0.01, rely=0.380, relwidth=0.200, relheight=0.13)
+        self.txt_path_label = Label(self.user_input_frame, text='SN序號, 請用;隔開, 例如:731976203;731972421;731974348', style='Ttxt_path_label.TLabel')
+        self.txt_path_label.place(relx=0.01, rely=0.380, relwidth=0.600, relheight=0.13)
 
         self.style.configure('Tcsv_path_label.TLabel', anchor='w', font=('iLiHei', 10))
-        self.csv_path_label = Label(self.user_input_frame, text='csv目錄路徑', style='Tcsv_path_label.TLabel')
+        self.csv_path_label = Label(self.user_input_frame, text='log檔根目錄路徑', style='Tcsv_path_label.TLabel')
         self.csv_path_label.place(relx=0.01, rely=0.010, relwidth=0.200, relheight=0.166)
 
         self.log_txt.tag_config("error", foreground="#CC0000")
@@ -246,7 +255,8 @@ class replace_Sub_Gui(Frame):
         with open(filepath, "r") as ins:
             error_ll.clear()
             for line in ins:
-                if line.find('FAIL') > -1 or line.find('fail') > -1 or line.find('Fail') > -1:
+                if line.find('FAIL') > -1 or line.find('fail') > -1 or line.find('Fail') > -1 \
+                        or line.find('no devices found') > -1 or line.find('device offline') > -1:
                     find_error = True
                     error_ll.append(line)
         sn_and_error_odic[key] = error_ll
@@ -266,7 +276,41 @@ class replace_Sub_Gui(Frame):
         with open(filepath, "r") as ins:
             error_ll.clear()
             for line in ins:
-                if line.find('FAIL') > -1 or line.find('fail') > -1 or line.find('Fail') > -1:
+                count_fail = False
+                fa_fail = False
+                fa_value_ll = []
+                # a = re.match('Motion Count:', line)
+                if line.find('Motion Count: ') > -1:
+                    # print(line)
+                    re_h = re.match('.*SPEC\((.*)\)', line)
+                    range_value = re_h.group(1).split('~')
+                    count_minimum = range_value[0]
+                    count_maximum = range_value[1]
+                    re_h = re.match('.*Motion Count: (\d+),', line)
+                    if re_h:
+                        count_value = re_h.group(1)
+                        count_value = re.sub(' ', '', count_value)
+                        # print(count_maximum, count_minimum, count_value)
+                        if (count_value > count_maximum) or (count_value < count_minimum):
+                            count_fail = True
+                        # print('count out of range')
+                if line.find('Motion FA: ') > -1:
+                    re_h = re.match('.*SPEC\((.*)\)', line)
+                    range_value = re_h.group(1).split('~')
+                    fa_minimum = range_value[0]
+                    fa_maximum = range_value[1]
+                    re_h = re.match('.*Motion FA: (.*)SPEC\(', line)
+                    if re_h:
+                        temp_str = re.sub(' ', '', re_h.group(1))
+                        temp_str = re.sub(',,', '', temp_str)
+                        fa_value_ll = temp_str.split(',')
+                        for fa_value in fa_value_ll:
+                            if (fa_value > fa_maximum) or (fa_value < fa_minimum):
+                                fa_fail = True
+
+                if line.find('FAIL') > -1 or line.find('fail') > -1 or line.find('Fail') > -1 \
+                        or line.find('no devices found') > -1 or line.find('device offline') > -1\
+                        or count_fail or fa_fail:
                     # print('william:%s' % line)
                     find_error = True
                     error_ll.append(line)
@@ -308,6 +352,48 @@ class replace_Sub_Gui(Frame):
     def store_file_to_folder(self, file, back_folder):
         shutil.copy2(file, back_folder)
 
+    def change_html_color_count_fa_fail_number(self, one_line_fail_text):
+        fa_value_ll = []
+        # count_fail = False
+        # fa_fail = False
+        input_str = str(one_line_fail_text)
+        # a = re.match('Motion Count:', line)
+        if input_str.find('Motion Count: ') > -1:
+            # print(input_str)
+            re_h = re.match('.*SPEC\((.*)\)', input_str)
+            range_value = re_h.group(1).split('~')
+            count_minimum = range_value[0]
+            count_maximum = range_value[1]
+            re_h = re.match('.*Motion Count: (\d+),', input_str)
+            if re_h:
+                count_value = re_h.group(1)
+                count_value = re.sub(' ', '', count_value)
+                # print(count_value)
+                # print(count_maximum, count_minimum, count_value)
+                if (count_value > count_maximum) or (count_value < count_minimum):
+                    input_str = input_str.replace('%s%s' % (count_value, ','), '%s%s%s%s' % (r'<font color="red">', count_value, ',', r'</font>'))
+
+            return input_str
+
+        elif input_str.find('Motion FA: ') > -1:
+            # print(input_str)
+            re_h = re.match('.*SPEC\((.*)\)', input_str)
+            range_value = re_h.group(1).split('~')
+            fa_minimum = range_value[0]
+            fa_maximum = range_value[1]
+            re_h = re.match('.*Motion FA: (.*) SPEC\(', input_str)
+            if re_h:
+                temp_str = re.sub(' ', '', re_h.group(1))
+                temp_str = re.sub(',,', '', temp_str)
+                fa_value_ll = temp_str.split(',')
+                for fa_value in fa_value_ll:
+                    if (fa_value > fa_maximum) or (fa_value < fa_minimum):
+                        input_str = input_str.replace('%s%s' % (fa_value, ','), '%s%s%s%s' % (r'<font color="red">', fa_value, ',', r'</font>'))
+            return input_str
+
+        else:
+            return one_line_fail_text
+
     def analysis_log_and_gen_report(self):
         sn_and_csverror_odic = OrderedDict()
         local_csv_path_odic = OrderedDict()
@@ -326,9 +412,9 @@ class replace_Sub_Gui(Frame):
         self.user_input_txtpath = self.txt_path_entry.get()
         # -----Check user input in GUI-----
         if self.user_input_csvpath == "" or self.user_input_txtpath == "":
-            tkinter.messagebox.showinfo("message", "請輸入csv與txt路徑")
+            tkinter.messagebox.showinfo("message", "請輸入csv與txt路徑及sn")
             return
-        if not (os.path.exists(self.user_input_csvpath) or os.path.exists(self.user_input_txtpath)):
+        if not os.path.exists(self.user_input_csvpath):
             tkinter.messagebox.showerror("Error", "路徑錯誤")
             return
 
@@ -344,8 +430,8 @@ class replace_Sub_Gui(Frame):
         # -----remove '\' or '/' in end of path string-----
         self.user_input_csvpath = re.sub(r"/$", '', self.user_input_csvpath)
         self.user_input_csvpath = re.sub(r"\\$", "", self.user_input_csvpath)
-        self.user_input_txtpath = re.sub(r"/$", '', self.user_input_txtpath)
-        self.user_input_txtpath = re.sub(r"\\$", "", self.user_input_txtpath)
+        self.user_input_txtpath = re.sub(r" ", '', self.user_input_txtpath)
+        self.user_input_txtpath = re.sub(r"\n", "", self.user_input_txtpath)
 
         # -----Store user input path and type into Setting.ini config file-----
         if not self.user_input_csvpath == self.csvpath_ini:
@@ -353,7 +439,7 @@ class replace_Sub_Gui(Frame):
             # print("path not match, write new path to ini")
             w_file_stat_lv = self.write_config(SETTING_NAME,  'Global', 'csvpath', self.user_input_csvpath)
         if not self.user_input_txtpath == self.txtpath_ini:
-            self.setlog("新的txt路徑設定寫入設定檔: " + SETTING_NAME, "info")
+            self.setlog("新的sn寫入設定檔: " + SETTING_NAME, "info")
             # print("type not match, write new type list to ini")
             w_file_stat_lv = self.write_config(SETTING_NAME, 'Global', 'txtpath', self.user_input_txtpath)
         if w_file_stat_lv == error_Type.FILE_ERROR.value:
@@ -383,10 +469,25 @@ class replace_Sub_Gui(Frame):
         # get all txt file that have sn in csv file
 
         all_txt_path = []
-        for root, dirs, files in os.walk(self.user_input_txtpath):
+        for root, dirs, files in os.walk(self.user_input_csvpath):
             for file in files:
                 if file.endswith('.txt'):
                     all_txt_path.append(os.path.join(root, file))
+
+
+        # full_path = r'C:\20170705_log\20170704_32A_E\FAIL\034427-731974736.txt'
+        sn_ll = []
+        sn_user_ll = self.user_input_txtpath.split(';')
+
+        for input_sn in sn_user_ll:
+            for full_path in tuple(all_txt_path):
+                full_file_path = os.path.split(full_path)
+                file_name_and_ext = os.path.splitext(full_file_path[1])
+                file_name = file_name_and_ext[0]
+                file_sn = re.sub('.*-', '', file_name)
+                if input_sn == file_sn:
+                    sn_ll.append(file_name)
+
 
         txt_sn_and_filepath_odic = self.get_file_list_store_to_dic(all_txt_path)
 
@@ -456,7 +557,7 @@ class replace_Sub_Gui(Frame):
         os.rename(('%s\\temp.html' % log_foldername), ('%s\\result.html' % log_foldername))
         html_full_path = ('%s\\result.html' % log_foldername)
 
-        self.setlog("產生報表", 'info')
+        self.setlog("產生html 報表", 'info')
         # todo: for test, remove late, temp copy temp.html to test.html folder
         # self.store_file_to_folder('temp.html', 'test.html')
         # write to html
@@ -472,7 +573,8 @@ class replace_Sub_Gui(Frame):
 
         # html_content = html_content.replace('{{sn}}', '12345')
         # for sn, error in sn_and_csverror_odic.items(): # read all sn that fail in csv file
-        for sn in txt_sn_and_filepath_odic.keys():  # read all sn that has csv file
+        # for sn in txt_sn_and_filepath_odic.keys():  # read all sn that has csv file
+        for sn in sn_ll:  # read all sn that in user input sn list
             # if sn have error that in txt file
             sn_has_txt_error = False
 
@@ -502,7 +604,7 @@ class replace_Sub_Gui(Frame):
                         html_content = html_content.replace('{{csv_fail_log}}', temp_error_log)
                     else:
                         html_content = html_content.replace('{{csv_fail_log}}', 'No error')
-                        self.setlog("sn: " + sn + '沒有csv fail log, 但有txt fail log', 'info')
+                        self.setlog("file: " + sn + '沒有csv fail log, 但有txt fail log', 'info')
                 else:
                     # write csv file path to url
                     html_content = html_content.replace('{{csv_url}}', 'No file')
@@ -523,9 +625,15 @@ class replace_Sub_Gui(Frame):
                     for fail_list in sn_and_txterror_odic[sn]:
                         if isinstance(fail_list, list):
                             for i in fail_list:
-                                temp_error_log += '%s%s' % (i, '<br>')
+                                test = i
+                                test = self.change_html_color_count_fa_fail_number(test)
+                                # temp_error_log += '%s%s' % (i, '<br>')
+                                temp_error_log += '%s%s' % (test, '<br>')
                         else:
-                            temp_error_log += '%s%s' % (fail_list, '<br>')
+                            test = fail_list
+                            test = self.change_html_color_count_fa_fail_number(test)
+                            # temp_error_log += '%s%s' % (fail_list, '<br>')
+                            temp_error_log += '%s%s' % (test, '<br>')
                         temp_error_log += '%s%s' % ('*******', '<br>')
                     html_content = html_content.replace('{{txt_fail_log}}', temp_error_log)
                 else:
@@ -538,6 +646,13 @@ class replace_Sub_Gui(Frame):
                 html_content = html_content.replace('{{next_item}}', html_template_need_repeat)
 
         html_content = html_content.replace('{{next_item}}', '')
+        html_content = html_content.replace('{{sn}}', '')
+        html_content = html_content.replace('{{csv_filename}}', '')
+        html_content = html_content.replace('{{csv_fail_log}}', '')
+        html_content = html_content.replace('{{txt_file_name}}', '')
+        html_content = html_content.replace('{{txt_fail_log}}', '')
+        html_content = html_content.replace('{{comment}}', '')
+
 
         try:
             # writhfile_html_lh = open('test.html', 'w')
@@ -550,7 +665,18 @@ class replace_Sub_Gui(Frame):
                         "請確認" + TITLE + "目錄有temp.html且內容正確", 'error')
             return
 
-        self.setlog("已產生報表, 請打開 " + log_foldername + "\\result.html", 'info')
+        # self.setlog("已產生報表, 請打開 " + log_foldername + "\\result.html", 'info')
+        self.setlog("已產生報表, 請打開 " + html_full_path, 'info')
+        self.store_file_to_folder(html_full_path, '%s%s%s' % (log_foldername, '\\', 'result.xls'))
+        # ================================================================================
+        # with open(html_full_path, 'r') as f:
+        #     df = pandas.read_html(f.read())
+        # # print(df[0])
+        # bb = pandas.ExcelWriter('%s%s%s' % (log_foldername, '\\', 'out.xlsx'))
+        # # str(df[0]).replace('*******', '')
+        # df[0].to_excel(bb)
+        #
+        # bb.close()
 
         # print(log_foldername)
 

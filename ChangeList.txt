@@ -4,3 +4,10 @@ Ver 0.0.2 - add split line on txt log out for user
             Change to check both of all txt and csv fail log
 Ver 0.0.3 - Change get file name and show rule for match factory store log new rule
 Ver 0.0.4 - Fix csv no file will make form error issue
+Ver 0.0.5 - implement user input specif sn to get relate csv and txt log
+Ver 0.0.6 - Add more fail condition
+            Remove \n on user input sn
+            Save html to excel format
+Ver 0.0.7 - Fix Calculation FA fail range issue
+            Fix Calculation Count fail range issue
+Ver 0.0.8 - Add red color for Count and FA fail number in fail log report

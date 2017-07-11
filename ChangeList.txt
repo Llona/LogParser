@@ -11,3 +11,6 @@ Ver 0.0.6 - Add more fail condition
 Ver 0.0.7 - Fix Calculation FA fail range issue
             Fix Calculation Count fail range issue
 Ver 0.0.8 - Add red color for Count and FA fail number in fail log report
+Ver 0.0.9 - Add fixture col
+            Add more detial in excel form
+            Add more user input sn method

@@ -13,6 +13,9 @@ Ver 0.0.6 - Add more fail condition
 Ver 0.0.7 - Fix Calculation FA fail range issue
             Fix Calculation Count fail range issue
 Ver 0.0.8 - Add red color for Count and FA fail number in fail log report
+Ver 0.0.9 - Add fixture col
+            Add more detial in excel form
+            Add more user input sn method
 """
 
 from tkinter import *
@@ -32,17 +35,31 @@ from datetime import datetime, timedelta
 # from tkinter.commondialog import Dialog
 from enum import Enum
 
-version = "v0.0.8"
+version = "v0.0.9"
 TITLE = "LogParser - " + version
 SETTING_NAME = "Settings.ini"
 html_template_need_repeat = \
 '    <tr>\n'\
 '        <th align="center">{{sn}}</th>\n'\
+'        <th align="center">{{fixture}}</th>\n'\
 '        <th align="center"><a href="{{csv_url}}">{{csv_filename}}</a></th>\n'\
 '        <td align="center">{{csv_fail_log}}</td>\n'\
 '        <th align="center"><a href="{{txt_url}}">{{txt_file_name}}</a></th>\n\n'\
 '        <td align="center">{{txt_fail_log}}</td>\n'\
 '        <!--<td align="center">{{comment}}</td>-->\n'\
+'    </tr>\n'\
+'{{next_item}}'
+
+
+form_template_need_repeat = \
+'    <tr>\n'\
+'        <th align="center">{{sn}}</th>\n'\
+'        <th align="center">{{fixture}}</th>\n'\
+'        <th align="center"><a href="{{csv_url}}">{{csv_filename}}</a></th>\n'\
+'        <td align="center">{{csv_fail_log}}</td>\n'\
+'        <th align="center"><a href="{{txt_url}}">{{txt_file_name}}</a></th>\n\n'\
+'        <td align="center">{{txt_fail_log}}</td>\n'\
+'        <td align="center">{{comment}}</td>\n'\
 '    </tr>\n'\
 '{{next_item}}'
 
@@ -138,7 +155,7 @@ class replace_Sub_Gui(Frame):
         self.version_state.place(relx=0.01, rely=0.87, relwidth=0.116, relheight=0.13)
 
         self.style.configure('Ttxt_path_label.TLabel', anchor='w', font=('iLiHei', 10))
-        self.txt_path_label = Label(self.user_input_frame, text='SN序號, 請用;隔開, 例如:731976203;731972421;731974348', style='Ttxt_path_label.TLabel')
+        self.txt_path_label = Label(self.user_input_frame, text='SN序號, 請用;或換行符隔開, 例如:731976203;731972421;731974348', style='Ttxt_path_label.TLabel')
         self.txt_path_label.place(relx=0.01, rely=0.380, relwidth=0.600, relheight=0.13)
 
         self.style.configure('Tcsv_path_label.TLabel', anchor='w', font=('iLiHei', 10))
@@ -290,6 +307,9 @@ class replace_Sub_Gui(Frame):
                     if re_h:
                         count_value = re_h.group(1)
                         count_value = re.sub(' ', '', count_value)
+                        count_maximum = int(count_maximum)
+                        count_minimum = int(count_minimum)
+                        count_value = int(count_value)
                         # print(count_maximum, count_minimum, count_value)
                         if (count_value > count_maximum) or (count_value < count_minimum):
                             count_fail = True
@@ -304,7 +324,14 @@ class replace_Sub_Gui(Frame):
                         temp_str = re.sub(' ', '', re_h.group(1))
                         temp_str = re.sub(',,', '', temp_str)
                         fa_value_ll = temp_str.split(',')
+                        # print(key)
+                        fa_maximum = int(fa_maximum)
+                        fa_minimum = int(fa_minimum)
                         for fa_value in fa_value_ll:
+                            if fa_value:
+                                fa_value = int(fa_value)
+                            else:
+                                continue
                             if (fa_value > fa_maximum) or (fa_value < fa_minimum):
                                 fa_fail = True
 
@@ -348,6 +375,34 @@ class replace_Sub_Gui(Frame):
 
         return sn_and_filepath_odic
 
+    def get_file_and_fixture_dic(self, sn_path_dic):
+        sn_and_fixture_odic = OrderedDict()
+
+        for sn in sn_path_dic.keys():
+            try:
+                # readfile_html_lh = open('test.html', 'r')
+                readfile_lh = open(sn_path_dic[sn], 'r')
+                # file_content = str(readfile_lh.read())
+            except:
+                self.setlog("Error! 讀取 " + sn_path_dic[sn] + " 檔發生錯誤! ", 'error')
+                return None
+
+            while True:
+                content_line = readfile_lh.readline()
+                re_h = re.match('.*;(SIMPLE1_[\d]?);.*', content_line)
+                if re_h:
+                    sn_and_fixture_odic[sn] = re_h.group(1)
+                    break
+                if content_line == '':
+                    self.setlog("Error! 找不到 " + sn_path_dic[sn] + " 的線別!! ", 'error')
+                    return None
+            readfile_lh.close()
+
+        # for k, v in sn_and_fixture_odic.items():
+        #     print(k)
+        #     print(v)
+
+        return sn_and_fixture_odic
 
     def store_file_to_folder(self, file, back_folder):
         shutil.copy2(file, back_folder)
@@ -368,6 +423,9 @@ class replace_Sub_Gui(Frame):
             if re_h:
                 count_value = re_h.group(1)
                 count_value = re.sub(' ', '', count_value)
+                count_maximum = int(count_maximum)
+                count_minimum = int(count_minimum)
+                count_value = int(count_value)
                 # print(count_value)
                 # print(count_maximum, count_minimum, count_value)
                 if (count_value > count_maximum) or (count_value < count_minimum):
@@ -386,7 +444,13 @@ class replace_Sub_Gui(Frame):
                 temp_str = re.sub(' ', '', re_h.group(1))
                 temp_str = re.sub(',,', '', temp_str)
                 fa_value_ll = temp_str.split(',')
+                fa_maximum = int(fa_maximum)
+                fa_minimum = int(fa_minimum)
                 for fa_value in fa_value_ll:
+                    if fa_value:
+                        fa_value = int(fa_value)
+                    else:
+                        continue
                     if (fa_value > fa_maximum) or (fa_value < fa_minimum):
                         input_str = input_str.replace('%s%s' % (fa_value, ','), '%s%s%s%s' % (r'<font color="red">', fa_value, ',', r'</font>'))
             return input_str
@@ -399,6 +463,7 @@ class replace_Sub_Gui(Frame):
         local_csv_path_odic = OrderedDict()
         txt_sn_and_filepath_odic = OrderedDict()
         sn_and_txterror_odic = OrderedDict()
+        sn_and_fixture_odic = OrderedDict()
         w_file_stat_lv = error_Type.NORMAL.value
 
         # -----Clear text widge for log-----
@@ -431,7 +496,6 @@ class replace_Sub_Gui(Frame):
         self.user_input_csvpath = re.sub(r"/$", '', self.user_input_csvpath)
         self.user_input_csvpath = re.sub(r"\\$", "", self.user_input_csvpath)
         self.user_input_txtpath = re.sub(r" ", '', self.user_input_txtpath)
-        self.user_input_txtpath = re.sub(r"\n", "", self.user_input_txtpath)
 
         # -----Store user input path and type into Setting.ini config file-----
         if not self.user_input_csvpath == self.csvpath_ini:
@@ -477,7 +541,16 @@ class replace_Sub_Gui(Frame):
 
         # full_path = r'C:\20170705_log\20170704_32A_E\FAIL\034427-731974736.txt'
         sn_ll = []
-        sn_user_ll = self.user_input_txtpath.split(';')
+        if self.user_input_txtpath.find(';') > -1:
+            self.user_input_txtpath = re.sub(r"\n", "", self.user_input_txtpath)
+            sn_user_ll = self.user_input_txtpath.split(';')
+        else:
+            sn_user_ll = self.user_input_txtpath.split()
+
+        # remove duplicate sn number in user input
+        sn_user_ll = tuple(sn_user_ll)
+        sn_user_ll = list(sn_user_ll)
+        sn_user_ll.sort()
 
         for input_sn in sn_user_ll:
             for full_path in tuple(all_txt_path):
@@ -488,8 +561,8 @@ class replace_Sub_Gui(Frame):
                 if input_sn == file_sn:
                     sn_ll.append(file_name)
 
-
         txt_sn_and_filepath_odic = self.get_file_list_store_to_dic(all_txt_path)
+        sn_and_fixture_odic = self.get_file_and_fixture_dic(txt_sn_and_filepath_odic)
 
         if not txt_sn_and_filepath_odic:
             # csv file list is empty
@@ -557,7 +630,7 @@ class replace_Sub_Gui(Frame):
         os.rename(('%s\\temp.html' % log_foldername), ('%s\\result.html' % log_foldername))
         html_full_path = ('%s\\result.html' % log_foldername)
 
-        self.setlog("產生html 報表", 'info')
+        self.setlog("產生html報表", 'info')
         # todo: for test, remove late, temp copy temp.html to test.html folder
         # self.store_file_to_folder('temp.html', 'test.html')
         # write to html
@@ -577,6 +650,7 @@ class replace_Sub_Gui(Frame):
         for sn in sn_ll:  # read all sn that in user input sn list
             # if sn have error that in txt file
             sn_has_txt_error = False
+            temp_str = ''
 
             if (sn in sn_and_txterror_odic) or (sn in sn_and_csverror_odic):  # if sn have error that in txt file
                 # print('-----%s-----' % k)
@@ -585,6 +659,14 @@ class replace_Sub_Gui(Frame):
                     self.setlog("Error! 寫入html發生錯誤, 找不到{{sn}}標籤! ", 'error')
                     return
                 html_content = html_content.replace('{{sn}}', sn)
+
+                # write fixture
+                temp_str = sn_and_fixture_odic[sn]
+                if temp_str:
+                    html_content = html_content.replace('{{fixture}}', temp_str)
+                else:
+                    html_content = html_content.replace('{{fixture}}', 'Fixture not find')
+
                 if sn in csv_sn_and_filepath_odic.keys():
 
                     # write csv file path to url
@@ -647,6 +729,7 @@ class replace_Sub_Gui(Frame):
 
         html_content = html_content.replace('{{next_item}}', '')
         html_content = html_content.replace('{{sn}}', '')
+        html_content = html_content.replace('{{fixture}}', '')
         html_content = html_content.replace('{{csv_filename}}', '')
         html_content = html_content.replace('{{csv_fail_log}}', '')
         html_content = html_content.replace('{{txt_file_name}}', '')
@@ -666,33 +749,138 @@ class replace_Sub_Gui(Frame):
             return
 
         # self.setlog("已產生報表, 請打開 " + log_foldername + "\\result.html", 'info')
-        self.setlog("已產生報表, 請打開 " + html_full_path, 'info')
-        self.store_file_to_folder(html_full_path, '%s%s%s' % (log_foldername, '\\', 'result.xls'))
-        # ================================================================================
-        # with open(html_full_path, 'r') as f:
-        #     df = pandas.read_html(f.read())
-        # # print(df[0])
-        # bb = pandas.ExcelWriter('%s%s%s' % (log_foldername, '\\', 'out.xlsx'))
-        # # str(df[0]).replace('*******', '')
-        # df[0].to_excel(bb)
-        #
-        # bb.close()
+        self.setlog("已產生fail log報表, 請打開 " + html_full_path, 'info')
+        # self.store_file_to_folder(html_full_path, '%s%s%s' % (log_foldername, '\\', 'result.xls'))
 
-        # print(log_foldername)
+        # todo: generate excel format form================================================================
+        # copy temp.html to log folder
+        self.store_file_to_folder('temp_form.xls', log_foldername)
+        # rename temp.html to result.html
+        os.rename(('%s\\temp_form.xls' % log_foldername), ('%s\\form.xls' % log_foldername))
+        excel_full_path = ('%s\\form.xls' % log_foldername)
+
+        self.setlog("產生excel報表", 'info')
+        # write to html
+        try:
+            # readfile_html_lh = open('test.html', 'r')
+            readfile_excel_lh = open(excel_full_path, 'r')
+            # html_content = str(readfile_excel_lh.read())
+            excel_content = str(readfile_excel_lh.read())
+            readfile_excel_lh.close()
+        except Exception as ex:
+            self.setlog("Error! 讀取excel檔發生錯誤! "
+                        "請確認" + TITLE + "目錄有temp_form.xls且內容正確", 'error')
+            return
 
 
-        # for k, v in sn_and_csverror_odic.items():
-        #     print('-----%s-----' % k)
-        #     for i in v:
-        #         print(i)
+        # excel_content = excel_content.replace('{{sn}}', '12345')
+        # for sn, error in sn_and_csverror_odic.items(): # read all sn that fail in csv file
+        # for sn in txt_sn_and_filepath_odic.keys():  # read all sn that has csv file
+        for sn in sn_ll:  # read all sn that in user input sn list
+            # if sn have error that in txt file
+            sn_has_txt_error = False
+            temp_str = ''
 
-        # for i in csv_file_list:
-        #     self.setlog(i, 'error')
+            if (sn in sn_and_txterror_odic) or (sn in sn_and_csverror_odic):  # if sn have error that in txt file
 
-        # if not sub_file_list:
-        #     # convert file list is empty
-        #     tkinter.messagebox.showwarning("Error", "錯誤! 在指定的目錄中找不到檔案! 請確認檔案路徑與類型")
-        #     return
+                excel_content = excel_content.replace('{{next_item}}', form_template_need_repeat)
+
+                # write sn
+                if excel_content.find('{{sn}}') == -1:
+                    self.setlog("Error! 寫入excel發生錯誤, 找不到{{sn}}標籤! ", 'error')
+                    return
+                excel_content = excel_content.replace('{{sn}}', sn)
+
+                # write fixture
+                temp_str = sn_and_fixture_odic[sn]
+                if temp_str:
+                    excel_content = excel_content.replace('{{fixture}}', temp_str)
+                else:
+                    excel_content = excel_content.replace('{{fixture}}', 'Fixture not find')
+
+                if sn in csv_sn_and_filepath_odic.keys():
+
+                    # write csv file path to url
+                    excel_content = excel_content.replace('{{csv_url}}', csv_sn_and_filepath_odic[sn])
+                    # write csv file name
+                    excel_content = excel_content.replace('{{csv_filename}}', ('%s%s' % (sn, '_calib.csv')))
+
+                    if sn in sn_and_csverror_odic.keys():
+                        # write csv error log to html
+                        temp_error_log = ''
+                        for fail_list in sn_and_csverror_odic[sn]:
+                            if isinstance(fail_list, list):
+                                for i in fail_list:
+                                    temp_error_log += '%s%s' % (i, '<br>')
+                            else:
+                                temp_error_log += '%s%s' % (fail_list, '<br>')
+                        excel_content = excel_content.replace('{{csv_fail_log}}', temp_error_log)
+                    else:
+                        excel_content = excel_content.replace('{{csv_fail_log}}', 'No error')
+                        # self.setlog("file: " + sn + '沒有csv fail log, 但有txt fail log', 'info')
+                else:
+                    # write csv file path to url
+                    excel_content = excel_content.replace('{{csv_url}}', 'No file')
+                    # write csv file name
+                    excel_content = excel_content.replace('{{csv_filename}}', 'No file')
+                    excel_content = excel_content.replace('{{csv_fail_log}}', 'No file')
+                    # self.setlog("file: " + sn + ' 有txt記錄檔但沒有csv檔', 'info')
+
+                # write txt all file path to html
+                temp_txt_filepath = ''
+                if sn in sn_and_txterror_odic.keys():
+                    # write txt file path to url
+                    excel_content = excel_content.replace('{{txt_url}}', txt_sn_and_filepath_odic[sn])
+                    # write txt file name
+                    excel_content = excel_content.replace('{{txt_file_name}}', ('%s%s' % (sn, '.txt')))
+
+                    temp_error_log = ''
+                    for fail_list in sn_and_txterror_odic[sn]:
+                        if isinstance(fail_list, list):
+                            for i in fail_list:
+                                test = i
+                                test = self.change_html_color_count_fa_fail_number(test)
+                                # temp_error_log += '%s%s' % (i, '<br>')
+                                temp_error_log += '%s%s' % (test, '<br>')
+                        else:
+                            test = fail_list
+                            test = self.change_html_color_count_fa_fail_number(test)
+                            # temp_error_log += '%s%s' % (fail_list, '<br>')
+                            temp_error_log += '%s%s' % (test, '<br>')
+                        # temp_error_log += '%s%s' % ('*******', '<br>')
+                    excel_content = excel_content.replace('{{txt_fail_log}}', temp_error_log)
+                else:
+                    # write txt file path to url
+                    excel_content = excel_content.replace('{{txt_url}}', txt_sn_and_filepath_odic[sn])
+                    # write txt file name
+                    excel_content = excel_content.replace('{{txt_file_name}}', ('%s%s' % (sn, '.txt')))
+                    excel_content = excel_content.replace('{{txt_fail_log}}', 'No error')
+
+                # excel_content = excel_content.replace('{{next_item}}', form_template_need_repeat)
+
+        excel_content = excel_content.replace('{{next_item}}', '')
+        excel_content = excel_content.replace('{{sn}}', '')
+        excel_content = excel_content.replace('{{fixture}}', '')
+        excel_content = excel_content.replace('{{csv_filename}}', '')
+        excel_content = excel_content.replace('{{csv_fail_log}}', '')
+        excel_content = excel_content.replace('{{txt_file_name}}', '')
+        excel_content = excel_content.replace('{{txt_fail_log}}', '')
+        excel_content = excel_content.replace('{{comment}}', '')
+
+        try:
+            # writhfile_html_lh = open('test.html', 'w')
+            writhfile_excel_lh = open(excel_full_path, 'w')
+            writhfile_excel_lh.write(excel_content)
+            writhfile_excel_lh.close()
+
+        except Exception as ex:
+            self.setlog("Error! 寫入excel檔發生錯誤! "
+                        "請確認" + TITLE + "目錄有temp_form.xls且內容正確", 'error')
+            return
+
+        # self.store_file_to_folder(excel_full_path, '%s%s%s' % (log_foldername, '\\', 'result.xls'))
+        self.setlog("已產生excel報表, 請打開 " + excel_full_path, 'info')
+
 
 def check_all_file_status():
     if not os.path.exists(SETTING_NAME):

@@ -14,3 +14,4 @@ Ver 0.0.8 - Add red color for Count and FA fail number in fail log report
 Ver 0.0.9 - Add fixture col
             Add more detial in excel form
             Add more user input sn method
+Ver 0.1.0 - Add comment col and classify fail log type

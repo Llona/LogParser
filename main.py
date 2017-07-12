@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
 Ver 0.0.1 - First version
@@ -16,6 +17,7 @@ Ver 0.0.8 - Add red color for Count and FA fail number in fail log report
 Ver 0.0.9 - Add fixture col
             Add more detial in excel form
             Add more user input sn method
+Ver 0.1.0 - Add comment col and classify fail log type
 """
 
 from tkinter import *
@@ -35,7 +37,7 @@ from datetime import datetime, timedelta
 # from tkinter.commondialog import Dialog
 from enum import Enum
 
-version = "v0.0.9"
+version = "v0.1.0"
 TITLE = "LogParser - " + version
 SETTING_NAME = "Settings.ini"
 html_template_need_repeat = \
@@ -286,12 +288,203 @@ class replace_Sub_Gui(Frame):
 
         return find_error, sn_and_error_odic
 
+    def check_button_clib_fail(self, filepath):
+        release_press_ll = []
+        release_value_ll = []
+        release_log_ll = []
+        release_press_log_ll = []
+        release_press_value_odic = OrderedDict()
+        temp_release_press_log_odic = OrderedDict()
+        release_press_log_odic = OrderedDict()
+        is_button_clib_fail = False
+
+        # filepath = r'C:\20170711\EFWB\32A_E\FAIL\101138-732149843.txt'
+        press_count = 0
+        with open(filepath, "r") as ins:
+            # line = readfile_lh.readline()
+            # for line in ins:
+            for line in ins:
+                if line.find('Button Calibration (Released) FA:') > -1:
+                    # print(line)
+                    re_h = re.match('.*FA: (.*),', line)
+                    if re_h:
+                        temp_str = re_h.group(1)
+                        temp_str = re.sub(' ', '', temp_str)
+                        temp_str = int(temp_str)
+                        # print(temp_str)
+                        release_value_ll.append(temp_str)
+                        release_log_ll.append(line)
+
+                        # print(temp_str)
+                    else:
+                        print('error1')
+                        continue
+                if line.find('Button Calibration (Pressed) FA:') > -1:
+                    # print(line)
+                    re_h = re.match('.*FA: (.*)', line)
+                    if re_h:
+                        press_count = press_count + 1
+                        temp_str = re_h.group(1)
+                        temp_str = re.sub(' ', '', temp_str)
+                        # print(temp_str)
+                        # if isinstance(temp_str, int):
+                        try:
+                            press_value_ls = int(temp_str)
+                        except:
+                            continue
+                        temp_str = release_value_ll[-1]
+                        release_press_ll.append(temp_str)
+                        release_press_ll.append(press_value_ls)
+                        release_press_value_odic[press_count] = release_press_ll
+                        release_press_ll = []
+
+                        temp_str = release_log_ll[-1]
+                        release_press_log_ll.append(temp_str)
+                        release_press_log_ll.append(line)
+                        temp_release_press_log_odic[press_count] = release_press_log_ll
+                        release_press_log_ll = []
+
+                        # print(temp_release_press_log_odic[press_count])
+                    else:
+                        print('error2')
+                        continue
+
+        for key, value in release_press_value_odic.items():
+            # print(key)
+            # print(value)
+            count = 0
+            release_value = 0
+            press_value = 0
+            for i in value:
+                count += 1
+                if count == 1:
+                    release_value = i
+                else:
+                    press_value = i
+
+            if release_value and press_value:
+                if (release_value - press_value) < 70:
+                    is_button_clib_fail = True
+                    log_count = 0
+                    release_log = ''
+                    press_log = ''
+                    for i in temp_release_press_log_odic[key]:
+                        log_count += 1
+                        if log_count == 1:
+                            release_log = i
+                        else:
+                            press_log = i
+                    if release_log and press_log:
+                        release_press_log_odic[release_log] = press_log
+
+        # for k, v in release_press_log_odic.items():
+        #     print(k)
+        #     print(v)
+        # print(is_button_clib_fail)
+        return is_button_clib_fail, release_press_log_odic
+
+    def check_motion_clib_fail(self, filepath):
+        over_range_count = 0
+        less_range_count = 0
+        motion_clib_error_type = 0
+        motion_clib_error_log_ll = []
+        with open(filepath, "r") as ins:
+            for line in ins:
+                if line.find('Motion Calibration Count: ') > -1:
+                    # print(line)
+                    re_h = re.match('.*SPEC\((.*)\)', line)
+                    range_value = re_h.group(1).split('~')
+                    clib_minimum = range_value[0]
+                    clib_maximum = range_value[1]
+                    re_h = re.match('.*Motion Calibration Count: (\d+),', line)
+                    if re_h:
+                        clib_value = re_h.group(1)
+                        clib_value = re.sub(' ', '', clib_value)
+                        clib_maximum = int(clib_maximum)
+                        clib_minimum = int(clib_minimum)
+                        clib_value = int(clib_value)
+                        # print(clib_maximum, clib_minimum, clib_value)
+                        if clib_value > clib_maximum:
+                            over_range_count += 1
+                            motion_clib_error_log_ll.append(line)
+                        if clib_value < clib_minimum:
+                            less_range_count += 1
+                            motion_clib_error_log_ll.append(line)
+
+        if less_range_count >= 10:
+            motion_clib_error_type = 2
+        elif (over_range_count + less_range_count) >= 10:
+            motion_clib_error_type = 1
+
+        # print(over_range_count)
+        # print(less_range_count)
+
+        return motion_clib_error_type, motion_clib_error_log_ll
+
+    def read_need_txt_contect(self, file_path):
+        temp_txt_file = 'temp.txt'
+        try:
+            readfile_txt_lh = open(file_path, 'r')
+            txt_content = str(readfile_txt_lh.read())
+            readfile_txt_lh.close()
+        except:
+            print('error')
+            return None
+        # print(txt_content)
+        list_patten = re.compile('.*(ErrMsg ====>.*)', re.S)
+        search_result = re.search(list_patten, txt_content)
+        if search_result:
+            search_content = search_result.group(1)
+        else:
+            search_content = txt_content
+        # print(search_result.group(1))
+
+        try:
+            writefile_tmptxt_lh = open(temp_txt_file, 'w')
+            writefile_tmptxt_lh.write(search_content)
+            writefile_tmptxt_lh.close()
+        except:
+            return None
+
+        return temp_txt_file
+
     def find_txtfile_error_and_store_to_dic(self, key, filepath):
         sn_and_error_odic = OrderedDict()
+        button_clib_fail_logs_odic = OrderedDict()
         error_ll = []
+        temp_str = ''
         find_error = False
-        with open(filepath, "r") as ins:
-            error_ll.clear()
+
+        temp_txt_path = self.read_need_txt_contect(filepath)
+        if not temp_txt_path:
+            self.setlog("寫入暫存檔錯誤", 'error')
+            print(filepath)
+            return None
+
+        # check button calibration fail
+        is_button_clib_fail, button_clib_fail_logs_odic = self.check_button_clib_fail(temp_txt_path)
+        if is_button_clib_fail:
+            print('a')
+            for k, v in button_clib_fail_logs_odic.items():
+                temp_str = ('%s,%s,' % (k, v))
+            temp_str += r'Button press Released FA-Pressed FA <70'
+            error_ll.append(temp_str)
+
+        # check motion calibration fail then 10 times
+        motion_clib_failtype, motion_clib_faillog_ll = self.check_motion_clib_fail(temp_txt_path)
+        if motion_clib_failtype > 0:
+            if motion_clib_failtype == 1:
+                for i in motion_clib_faillog_ll:
+                    temp_str += ('%s,' % i)
+                temp_str += ('Motion Calibration Count out of spec')
+            if motion_clib_failtype == 2:
+                for i in motion_clib_faillog_ll:
+                    temp_str += ('%s,' % i)
+                temp_str += ('Motion Calibration Count < SPEC in 10 times')
+            error_ll.append(temp_str)
+
+        with open(temp_txt_path, "r") as ins:
+            # error_ll.clear()
             for line in ins:
                 count_fail = False
                 fa_fail = False
@@ -457,6 +650,38 @@ class replace_Sub_Gui(Frame):
 
         else:
             return one_line_fail_text
+
+
+    def check_fixture_idle(self, input_str):
+        is_fixture_idle = False
+        if input_str.find('Motion FA: ') > -1:
+            re_h = re.match('.*Motion FA: (.*) SPEC\(', input_str)
+            if re_h:
+                temp_str = re.sub(' ', '', re_h.group(1))
+                temp_str = re.sub(',,', '', temp_str)
+                fa_value_ll = temp_str.split(',')
+                if len(fa_value_ll) == 1:
+                    for fa in fa_value_ll:
+                        if fa and fa <= 0:
+                            is_fixture_idle = True
+
+            else:
+                is_fixture_idle = True
+
+        if input_str.find('Motion Count: ') > -1:
+            re_h = re.match('.*Motion Count: (\d+),', input_str)
+            if re_h:
+                count_value = re_h.group(1)
+                count_value = re.sub(' ', '', count_value)
+                count_value = int(count_value)
+                if count_value <= 0:
+                    is_fixture_idle = True
+            else:
+                is_fixture_idle = True
+
+        return is_fixture_idle
+
+
 
     def analysis_log_and_gen_report(self):
         sn_and_csverror_odic = OrderedDict()
@@ -762,9 +987,7 @@ class replace_Sub_Gui(Frame):
         self.setlog("產生excel報表", 'info')
         # write to html
         try:
-            # readfile_html_lh = open('test.html', 'r')
             readfile_excel_lh = open(excel_full_path, 'r')
-            # html_content = str(readfile_excel_lh.read())
             excel_content = str(readfile_excel_lh.read())
             readfile_excel_lh.close()
         except Exception as ex:
@@ -772,12 +995,7 @@ class replace_Sub_Gui(Frame):
                         "請確認" + TITLE + "目錄有temp_form.xls且內容正確", 'error')
             return
 
-
-        # excel_content = excel_content.replace('{{sn}}', '12345')
-        # for sn, error in sn_and_csverror_odic.items(): # read all sn that fail in csv file
-        # for sn in txt_sn_and_filepath_odic.keys():  # read all sn that has csv file
         for sn in sn_ll:  # read all sn that in user input sn list
-            # if sn have error that in txt file
             sn_has_txt_error = False
             temp_str = ''
 
@@ -835,6 +1053,8 @@ class replace_Sub_Gui(Frame):
                     excel_content = excel_content.replace('{{txt_file_name}}', ('%s%s' % (sn, '.txt')))
 
                     temp_error_log = ''
+                    temp_error_type_ll = []
+                    temp_error_type_ls = ''
                     for fail_list in sn_and_txterror_odic[sn]:
                         if isinstance(fail_list, list):
                             for i in fail_list:
@@ -847,8 +1067,125 @@ class replace_Sub_Gui(Frame):
                             test = self.change_html_color_count_fa_fail_number(test)
                             # temp_error_log += '%s%s' % (fail_list, '<br>')
                             temp_error_log += '%s%s' % (test, '<br>')
+
+                        # write comment
+                        # case 1: button fail and no csv file
+                        if (fail_list.find('Button Test Result Fail') > -1) and (sn not in csv_sn_and_filepath_odic.keys()):
+                            temp_str = 'USB Disconnect'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+                        elif (fail_list.find('Button Test Enable Fail') > -1) and (sn not in csv_sn_and_filepath_odic.keys()):
+                            temp_str = 'USB Disconnect'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+                        elif (fail_list.find('Record Value Fail') > -1) and (sn not in csv_sn_and_filepath_odic.keys()):
+                            temp_str = 'USB Disconnect'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+
+                        # case 2: device offline
+                        if fail_list.find('device offline') > -1:
+                            temp_str = 'device offline'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+                        # case 3: no devices found
+                        if fail_list.find('no devices found') > -1:
+                            temp_str = 'no devices found'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+
+                        # case 4: Motion FA value is out of SPEC
+                        if fail_list.find('Motion FA: ') > -1:
+                            re_h = re.match('.*SPEC\((.*)\)', fail_list)
+                            range_value = re_h.group(1).split('~')
+                            fa_minimum = range_value[0]
+                            fa_maximum = range_value[1]
+                            re_h = re.match('.*Motion FA: (.*) SPEC\(', fail_list)
+                            if re_h:
+                                temp_str = re.sub(' ', '', re_h.group(1))
+                                temp_str = re.sub(',,', '', temp_str)
+                                fa_value_ll = temp_str.split(',')
+                                fa_maximum = int(fa_maximum)
+                                fa_minimum = int(fa_minimum)
+                                for fa_value in fa_value_ll:
+                                    if fa_value:
+                                        fa_value = int(fa_value)
+                                    else:
+                                        continue
+                                    if (fa_value > fa_maximum) or (fa_value < fa_minimum):
+                                        temp_str = '治具轉動異常: Rotation(Motion) FA out of spec'
+                                        if not temp_error_type_ls.find(temp_str) > -1:
+                                            temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+                                            break
+                        # case 5: 治具轉動異常
+                        if (fail_list.find("Roating On Fail") > -1) or (fail_list.find('Roating Down Fail') > -1):
+                            temp_str = '治具轉動異常: Roating ON/Down Fail'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+
+                        # case 6: 治具按壓異常
+                        if fail_list.find(r'Button press Released FA-Pressed FA <70') > -1:
+                            temp_str = '治具按壓異常: Button press Released FA-Pressed FA <70'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+                        # case 7: fixture idle
+                        if self.check_fixture_idle(fail_list):
+                            temp_str = '治具空轉'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+                        # case 8: Motion Count out of spec
+                        if fail_list.find('Motion Count: ') > -1:
+                            # print(input_str)
+                            re_h = re.match('.*SPEC\((.*)\)', fail_list)
+                            range_value = re_h.group(1).split('~')
+                            count_minimum = range_value[0]
+                            count_maximum = range_value[1]
+                            re_h = re.match('.*Motion Count: (\d+),', fail_list)
+                            if re_h:
+                                count_value = re_h.group(1)
+                                count_value = re.sub(' ', '', count_value)
+                                count_value = int(count_value)
+                                if count_value > 300:
+                                    temp_str = 'Motion Count out of spec'
+                                    if not temp_error_type_ls.find(temp_str) > -1:
+                                        temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+
+                        # case 9: Motion Calibration Count out of spec
+                        # case 12: 組裝(Crown sensor 偏移)
+                        if fail_list.find('Motion Calibration Count out of spec') > -1:
+                            temp_str = 'Motion Calibration Count out of spec'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+                        if fail_list.find('Motion Calibration Count < SPEC in 10 times') > -1:
+                            temp_str = '組裝(Crown sensor 偏移'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+
+                        # case 10: 暫時不用管
+                        # case 11: 組裝(Board to Board 沒扣)
+                        if (fail_list.find('Button Calibration (Released) Fail') > -1) and (fail_list.find('Button Calibration (Released) FA: T9127]Open CSV file success') > -1):
+                            if 'Check button and motion status FAIL' in sn_and_csverror_odic[sn]:
+                                temp_str = '組裝 - Board to Board 沒扣'
+                                if not temp_error_type_ls.find(temp_str) > -1:
+                                    temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+                        elif (fail_list.find('Button Calibration (Released) Fail') > -1) and (sn not in csv_sn_and_filepath_odic.keys()):
+                            temp_str = '組裝 - Board to Board 沒扣'
+                            if not temp_error_type_ls.find(temp_str) > -1:
+                                temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+
+                        # case 13: 組裝 - 亮度不足(Crown sensor 偏移)
+                        if fail_list.find('Button Calibration (Released) Fail') > -1:
+                            if sn in sn_and_csverror_odic.keys():
+                                for csv_error in sn_and_csverror_odic[sn]:
+                                    if csv_error.find('FAIL! SHUTTER_C already reach min level: 0') > -1:
+                                        temp_str = '組裝 - 亮度不足(Crown sensor 偏移)'
+                                        if not temp_error_type_ls.find(temp_str) > -1:
+                                            temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+
                         # temp_error_log += '%s%s' % ('*******', '<br>')
                     excel_content = excel_content.replace('{{txt_fail_log}}', temp_error_log)
+                    excel_content = excel_content.replace('{{comment}}', temp_error_type_ls)
+
                 else:
                     # write txt file path to url
                     excel_content = excel_content.replace('{{txt_url}}', txt_sn_and_filepath_odic[sn])
@@ -865,7 +1202,7 @@ class replace_Sub_Gui(Frame):
         excel_content = excel_content.replace('{{csv_fail_log}}', '')
         excel_content = excel_content.replace('{{txt_file_name}}', '')
         excel_content = excel_content.replace('{{txt_fail_log}}', '')
-        excel_content = excel_content.replace('{{comment}}', '')
+        # excel_content = excel_content.replace('{{comment}}', '')
 
         try:
             # writhfile_html_lh = open('test.html', 'w')

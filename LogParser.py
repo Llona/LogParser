@@ -15,7 +15,7 @@ Ver 0.0.7 - Fix Calculation FA fail range issue
             Fix Calculation Count fail range issue
 Ver 0.0.8 - Add red color for Count and FA fail number in fail log report
 Ver 0.0.9 - Add fixture col
-            Add more detial in excel form
+            Add more detail in excel form
             Add more user input sn method
 Ver 0.1.0 - Add comment col and classify fail log type
 Ver 0.1.1 - keep user input sn order
@@ -23,6 +23,9 @@ Ver 0.1.2 - modify fail string
 Ver 0.1.3 - Add more comment case to 15 and more USB disconect case
 Ver 0.1.4 - Add more comment case to 16
             don't read/write temp_txt for speed up
+Ver 0.1.4 - Modify comment string
+Ver 0.1.5 - Modify comment string
+Ver 0.1.6 - Add more comment case to 17
 """
 
 from tkinter import *
@@ -42,7 +45,7 @@ from datetime import datetime, timedelta
 # from tkinter.commondialog import Dialog
 from enum import Enum
 
-version = "v0.1.4"
+version = "v0.1.6"
 TITLE = "LogParser - " + version
 SETTING_NAME = "Settings.ini"
 html_template_need_repeat = \
@@ -617,6 +620,30 @@ class replace_Sub_Gui(Frame):
                                     error_ll.append(temp_str)
                             except:
                                 pass
+
+            # check Shutter and FA 0 fail
+            btn_release_fail = False
+            if line.find(', FA: ') > -1:
+                re_h = re.match('.*FA: (.*)', line)
+                if re_h:
+                    temp_value = re_h.group(1)
+                    temp_value = re.sub(' ', '', temp_value)
+                    if temp_value:
+                        try:
+                            btn_release_value = int(temp_value)
+                        except:
+                            btn_release_value = 0
+
+                        if btn_release_value == 0:
+                            btn_release_fail = True
+
+                    else:
+                        btn_release_fail = True
+
+                    if btn_release_fail:
+                        temp_str = '%s,%s' % (line, r'Button Release Fail - FA: 0')
+                        error_ll.append(temp_str)
+
 
             if line.find('FAIL') > -1 or line.find('fail') > -1 or line.find('Fail') > -1 \
                     or line.find('no devices found') > -1 or line.find('device offline') > -1\
@@ -1308,11 +1335,20 @@ class replace_Sub_Gui(Frame):
                                         if not temp_error_type_ls.find(temp_str) > -1:
                                             temp_error_type_ls += '%s%s' % (temp_str, '<br>')
 
-                        # case 16: SW 280 fixed
+                        # case 16: Button press Released FA-Pressed FA >70 and <60
                         if fail_list.find(r'Button press Released FA-Pressed FA >70 and <60') > -1:
-                            temp_str = 'SW 280 fixed'
+                            temp_str = '治具按壓異常 - Button press Released FA-Pressed FA<70 - SW 280 fixed'
                             if not temp_error_type_ls.find(temp_str) > -1:
                                 temp_error_type_ls += '%s%s' % (temp_str, '<br>')
+
+                        # case 17: fix 280 sw
+                        if fail_list.find(r'Button Release Fail - FA: 0') > -1:
+                            if (sn in sn_and_csverror_odic.keys()):
+                                for csv_fail in sn_and_csverror_odic[sn]:
+                                    if csv_fail.find('FAIL! SHUTTER_C already reach max level') > -1:
+                                        temp_str = 'SW 280 imporve'
+                                        if not temp_error_type_ls.find(temp_str) > -1:
+                                            temp_error_type_ls += '%s%s' % (temp_str, '<br>')
 
                         # temp_error_log += '%s%s' % ('*******', '<br>')
                     excel_content = excel_content.replace('{{txt_fail_log}}', temp_error_log)
